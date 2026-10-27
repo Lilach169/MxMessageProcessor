@@ -283,7 +283,13 @@ try
 
    
 }
+catch (OracleException ex) when (ex.Number == 1)
+{
+    Console.WriteLine(
+        "Duplicate transaction detected. The transaction already exists in the database."
+    );
+}
 catch (OracleException ex)
 {
-    Console.WriteLine($"Oracle connection failed: {ex.Message}");
+    Console.WriteLine($"Oracle database error: {ex.Message}");
 }
