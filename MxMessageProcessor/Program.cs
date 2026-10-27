@@ -1,19 +1,25 @@
 ﻿using System.Xml.Linq;
+using MxMessageProcessor;
 using MxMessageProcessor.Models;
 using Oracle.ManagedDataAccess.Client;
 
 if (args.Length == 0)
 {
     Console.WriteLine("Error: XML file path was not provided.");
+    FileLogger.Log("ERROR: XML file path was not provided.");
     Environment.ExitCode = 1;
     return;
 }
 
 string filePath = args[0];
+bool skipDatabase = args.Skip(1).Any(arg =>
+    arg.Equals("--no-db", StringComparison.OrdinalIgnoreCase));
+FileLogger.Log($"Processing started. Source file: {Path.GetFileName(filePath)}");
 
 if (!File.Exists(filePath))
 {
     Console.WriteLine($"Error: File not found: {filePath}");
+    FileLogger.Log($"ERROR: File not found: {filePath}");
     Environment.ExitCode = 1;
     return;
 }
@@ -27,18 +33,21 @@ try
 catch (System.Xml.XmlException ex)
 {
     Console.WriteLine($"Error: Invalid XML format. {ex.Message}");
+    FileLogger.Log($"ERROR: Invalid XML format: {ex.Message}");
     Environment.ExitCode = 1;
     return;
 }
 catch (IOException ex)
 {
     Console.WriteLine($"Error reading file: {ex.Message}");
+    FileLogger.Log($"ERROR: Failed to read XML file: {ex.Message}");
     Environment.ExitCode = 1;
     return;
 }
 catch (UnauthorizedAccessException)
 {
     Console.WriteLine("Error: Access to the XML file was denied.");
+    FileLogger.Log("ERROR: Access to XML file was denied.");
     Environment.ExitCode = 1;
     return;
 }
@@ -49,6 +58,14 @@ string? messageId = xml
     .Descendants(ns + "MsgId")
     .FirstOrDefault()?.Value;
 
+if (string.IsNullOrWhiteSpace(messageId))
+{
+    Console.WriteLine("ERROR: Message ID is missing or empty.");
+    FileLogger.Log("ERROR: Message ID is missing or empty.");
+    Environment.ExitCode = 1;
+    return;
+}
+
 Console.WriteLine($"Message ID: {messageId}");
 
 var transactions = xml
@@ -56,6 +73,7 @@ var transactions = xml
     .ToList();
 
 Console.WriteLine($"Transactions found: {transactions.Count}");
+FileLogger.Log($"Transactions found: {transactions.Count}");
 string? expectedCountText = xml
     .Descendants(ns + "GrpHdr")
     .Elements(ns + "NbOfTxs")
@@ -65,6 +83,7 @@ string? expectedCountText = xml
 if (!int.TryParse(expectedCountText, out int expectedCount))
 {
     Console.WriteLine("Error: Invalid NbOfTxs value.");
+    FileLogger.Log("ERROR: Invalid or missing NbOfTxs value.");
     Environment.ExitCode = 1;
     return;
 }
@@ -76,6 +95,7 @@ if (expectedCount != actualCount)
     Console.WriteLine(
         $"Validation failed! Expected: {expectedCount}, Actual: {actualCount}"
     );
+    FileLogger.Log($"ERROR: Transaction count mismatch. Expected: {expectedCount}, Actual: {actualCount}");
     Environment.ExitCode = 1;
     return;
 }
@@ -133,6 +153,7 @@ foreach (var transaction in transactions)
         Console.WriteLine(
             $"Validation failed: Missing required field in transaction {endToEndId}"
         );
+        FileLogger.Log($"ERROR: Missing required field in transaction {endToEndId}");
         Environment.ExitCode = 1;
         return;
     }
@@ -146,6 +167,7 @@ foreach (var transaction in transactions)
         Console.WriteLine(
             $"Validation failed: Invalid amount in transaction {endToEndId}"
         );
+        FileLogger.Log($"ERROR: Invalid amount in transaction {endToEndId}");
         Environment.ExitCode = 1;
         return;
     }
@@ -160,6 +182,7 @@ foreach (var transaction in transactions)
         Console.WriteLine(
             $"Validation failed: Invalid date in transaction {endToEndId}"
         );
+        FileLogger.Log($"ERROR: Invalid date in transaction {endToEndId}");
         Environment.ExitCode = 1;
         return;
     }
@@ -201,6 +224,19 @@ foreach (var transaction in transactions)
         $"Currency: {mxTransaction.Currency}"
     );
 }
+if (skipDatabase)
+{
+    Console.WriteLine(
+        "XML processing completed successfully. Database access skipped."
+    );
+
+    FileLogger.Log(
+        $"SUCCESS: XML validation completed without database access. " +
+        $"Message ID: {messageId}, Transactions: {parsedTransactions.Count}"
+    );
+
+    return;
+}
 
 string? dbPassword =
     Environment.GetEnvironmentVariable("MX_DB_PASSWORD");
@@ -219,6 +255,25 @@ try
     using OracleConnection connection = new OracleConnection(connectionString);
     connection.Open();
     Console.WriteLine("Successfully connected to Oracle!");
+    using OracleCommand duplicateCheck = connection.CreateCommand();
+
+    duplicateCheck.CommandText = @"
+    SELECT COUNT(*)
+    FROM MX_TRANSACTIONS
+    WHERE MSG_ID = :msgId";
+
+    duplicateCheck.Parameters.Add("msgId", OracleDbType.Varchar2).Value = messageId;
+
+    int existingCount = Convert.ToInt32(duplicateCheck.ExecuteScalar());
+
+    if (existingCount > 0)
+    {
+        Console.WriteLine(
+            $"Duplicate message detected: {messageId}. Skipping message."
+        );
+        FileLogger.Log($"Duplicate message detected: {messageId}. Skipping message.");
+        return;
+    }
     Console.WriteLine($"Ready to save {parsedTransactions.Count} transactions to Oracle.");
     using OracleTransaction dbTransaction = connection.BeginTransaction();
     try
@@ -293,6 +348,7 @@ try
     dbTransaction.Commit();
 
     Console.WriteLine("All transactions saved successfully!");
+        FileLogger.Log($"SUCCESS: All {parsedTransactions.Count} transactions saved successfully. Message ID: {messageId}");
     }
     catch (Exception)
     {
@@ -307,10 +363,12 @@ catch (OracleException ex) when (ex.Number == 1)
     Console.WriteLine(
         "Duplicate transaction detected. The transaction already exists in the database."
     );
+    FileLogger.Log("ERROR: Duplicate transaction detected. The transaction already exists in the database.");
     Environment.ExitCode = 1;
 }
 catch (OracleException ex)
 {
     Console.WriteLine($"Oracle database error: {ex.Message}");
+    FileLogger.Log($"ERROR: Oracle database error: {ex.Message}");
     Environment.ExitCode = 1;
 }
