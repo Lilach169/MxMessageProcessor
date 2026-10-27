@@ -1,5 +1,6 @@
 ﻿using System.Xml.Linq;
 using MxMessageProcessor.Models;
+using Oracle.ManagedDataAccess.Client;
 
 if (args.Length == 0)
 {
@@ -189,4 +190,100 @@ foreach (var transaction in transactions)
         $"Amount: {mxTransaction.Amount}, " +
         $"Currency: {mxTransaction.Currency}"
     );
+}
+
+string? dbPassword =
+    Environment.GetEnvironmentVariable("MX_DB_PASSWORD");
+
+if (string.IsNullOrWhiteSpace(dbPassword))
+{
+    Console.WriteLine("Error: MX_DB_PASSWORD is not configured.");
+    return;
+}
+
+string connectionString =
+    $"User Id=MX_APP;Password={dbPassword};Data Source=//localhost:1521/FREEPDB1;";
+try
+{
+    using OracleConnection connection = new OracleConnection(connectionString);
+    connection.Open();
+    Console.WriteLine("Successfully connected to Oracle!");
+    Console.WriteLine($"Ready to save {parsedTransactions.Count} transactions to Oracle.");
+    using OracleTransaction dbTransaction = connection.BeginTransaction();
+    foreach (MxTransaction transaction in parsedTransactions)
+    {
+        using OracleCommand command = connection.CreateCommand();
+        command.Transaction = dbTransaction;
+
+        command.BindByName = true;
+
+        command.CommandText = @"
+        INSERT INTO MX_TRANSACTIONS
+        (MSG_ID, MSG_TYPE, END_TO_END_ID, AMOUNT, CURRENCY,
+         SETTLEMENT_DATE, DEBTOR_NAME, DEBTOR_BIC,
+         CREDITOR_NAME, CREDITOR_BIC, RAW_XML,
+         LOAD_TIMESTAMP, SOURCE_FILE, STATUS)
+        VALUES
+        (:msgId, :msgType, :endToEndId, :amount, :currency,
+         :settlementDate, :debtorName, :debtorBic,
+         :creditorName, :creditorBic, :rawXml,
+         :loadTimestamp, :sourceFile, :status)";
+
+        command.Parameters.Add("msgId", OracleDbType.Varchar2).Value =
+    (object?)transaction.MessageId ?? DBNull.Value;
+
+        command.Parameters.Add("msgType", OracleDbType.Varchar2).Value =
+            (object?)transaction.MessageType ?? DBNull.Value;
+
+        command.Parameters.Add("endToEndId", OracleDbType.Varchar2).Value =
+            transaction.EndToEndId;
+
+        command.Parameters.Add("amount", OracleDbType.Decimal).Value =
+            transaction.Amount;
+
+        command.Parameters.Add("currency", OracleDbType.Varchar2).Value =
+            transaction.Currency;
+
+        command.Parameters.Add("settlementDate", OracleDbType.Date).Value =
+            transaction.SettlementDate;
+
+        command.Parameters.Add("debtorName", OracleDbType.NVarchar2).Value =
+            (object?)transaction.DebtorName ?? DBNull.Value;
+
+        command.Parameters.Add("debtorBic", OracleDbType.Varchar2).Value =
+            (object?)transaction.DebtorBic ?? DBNull.Value;
+
+        command.Parameters.Add("creditorName", OracleDbType.NVarchar2).Value =
+            (object?)transaction.CreditorName ?? DBNull.Value;
+
+        command.Parameters.Add("creditorBic", OracleDbType.Varchar2).Value =
+            (object?)transaction.CreditorBic ?? DBNull.Value;
+
+        command.Parameters.Add("rawXml", OracleDbType.Clob).Value =
+            (object?)transaction.RawXml ?? DBNull.Value;
+
+        command.Parameters.Add("loadTimestamp", OracleDbType.TimeStamp).Value =
+            transaction.LoadTimestamp;
+
+        command.Parameters.Add("sourceFile", OracleDbType.Varchar2).Value =
+            (object?)transaction.SourceFile ?? DBNull.Value;
+
+        command.Parameters.Add("status", OracleDbType.Varchar2).Value =
+            transaction.Status;
+
+        int rowsInserted = command.ExecuteNonQuery();
+
+        Console.WriteLine(
+            $"Transaction {transaction.EndToEndId}: {rowsInserted} row inserted."
+        );
+    }
+    dbTransaction.Commit();
+
+    Console.WriteLine("All transactions saved successfully!");
+
+   
+}
+catch (OracleException ex)
+{
+    Console.WriteLine($"Oracle connection failed: {ex.Message}");
 }
