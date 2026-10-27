@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "MxMessageProcessor": {
+      "commandName": "Project",
+      "commandLineArgs": "\"C:\\Users\\lilach nachum\\Desktop\\MxMessageProcessor\\MxMessageProcessor\\Samples\\sample-pacs008.xml\""
+    }
+  }
+}
