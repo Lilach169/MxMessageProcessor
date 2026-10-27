@@ -210,7 +210,9 @@ try
     Console.WriteLine("Successfully connected to Oracle!");
     Console.WriteLine($"Ready to save {parsedTransactions.Count} transactions to Oracle.");
     using OracleTransaction dbTransaction = connection.BeginTransaction();
-    foreach (MxTransaction transaction in parsedTransactions)
+    try
+    {
+        foreach (MxTransaction transaction in parsedTransactions)
     {
         using OracleCommand command = connection.CreateCommand();
         command.Transaction = dbTransaction;
@@ -280,8 +282,14 @@ try
     dbTransaction.Commit();
 
     Console.WriteLine("All transactions saved successfully!");
+    }
+    catch (Exception)
+    {
+        dbTransaction.Rollback();
+        Console.WriteLine("Transaction rolled back. No changes were saved.");
+        throw;
+    }
 
-   
 }
 catch (OracleException ex) when (ex.Number == 1)
 {
