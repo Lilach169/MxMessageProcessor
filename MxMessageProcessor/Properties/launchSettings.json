@@ -2,7 +2,7 @@
   "profiles": {
     "MxMessageProcessor": {
       "commandName": "Project",
-      "commandLineArgs": "\"C:\\Users\\lilach nachum\\Desktop\\MxMessageProcessor\\MxMessageProcessor\\Samples\\sample-rollback-test.xml\""
+      "commandLineArgs": "\"C:\\Users\\lilach nachum\\Desktop\\MxMessageProcessor\\MxMessageProcessor\\Samples\\sample-success-test.xml\""
     }
   }
 }

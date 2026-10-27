@@ -5,6 +5,7 @@ using Oracle.ManagedDataAccess.Client;
 if (args.Length == 0)
 {
     Console.WriteLine("Error: XML file path was not provided.");
+    Environment.ExitCode = 1;
     return;
 }
 
@@ -13,6 +14,7 @@ string filePath = args[0];
 if (!File.Exists(filePath))
 {
     Console.WriteLine($"Error: File not found: {filePath}");
+    Environment.ExitCode = 1;
     return;
 }
 
@@ -25,16 +27,19 @@ try
 catch (System.Xml.XmlException ex)
 {
     Console.WriteLine($"Error: Invalid XML format. {ex.Message}");
+    Environment.ExitCode = 1;
     return;
 }
 catch (IOException ex)
 {
     Console.WriteLine($"Error reading file: {ex.Message}");
+    Environment.ExitCode = 1;
     return;
 }
 catch (UnauthorizedAccessException)
 {
     Console.WriteLine("Error: Access to the XML file was denied.");
+    Environment.ExitCode = 1;
     return;
 }
 
@@ -60,6 +65,7 @@ string? expectedCountText = xml
 if (!int.TryParse(expectedCountText, out int expectedCount))
 {
     Console.WriteLine("Error: Invalid NbOfTxs value.");
+    Environment.ExitCode = 1;
     return;
 }
 
@@ -70,6 +76,7 @@ if (expectedCount != actualCount)
     Console.WriteLine(
         $"Validation failed! Expected: {expectedCount}, Actual: {actualCount}"
     );
+    Environment.ExitCode = 1;
     return;
 }
 
@@ -126,6 +133,7 @@ foreach (var transaction in transactions)
         Console.WriteLine(
             $"Validation failed: Missing required field in transaction {endToEndId}"
         );
+        Environment.ExitCode = 1;
         return;
     }
 
@@ -138,6 +146,7 @@ foreach (var transaction in transactions)
         Console.WriteLine(
             $"Validation failed: Invalid amount in transaction {endToEndId}"
         );
+        Environment.ExitCode = 1;
         return;
     }
 
@@ -151,6 +160,7 @@ foreach (var transaction in transactions)
         Console.WriteLine(
             $"Validation failed: Invalid date in transaction {endToEndId}"
         );
+        Environment.ExitCode = 1;
         return;
     }
 
@@ -198,6 +208,7 @@ string? dbPassword =
 if (string.IsNullOrWhiteSpace(dbPassword))
 {
     Console.WriteLine("Error: MX_DB_PASSWORD is not configured.");
+    Environment.ExitCode = 1;
     return;
 }
 
@@ -296,8 +307,10 @@ catch (OracleException ex) when (ex.Number == 1)
     Console.WriteLine(
         "Duplicate transaction detected. The transaction already exists in the database."
     );
+    Environment.ExitCode = 1;
 }
 catch (OracleException ex)
 {
     Console.WriteLine($"Oracle database error: {ex.Message}");
+    Environment.ExitCode = 1;
 }

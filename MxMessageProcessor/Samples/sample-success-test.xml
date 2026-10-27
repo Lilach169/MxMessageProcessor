@@ -1,0 +1,35 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:pacs.008.001.08">
+  <FIToFICstmrCdtTrf>
+    <GrpHdr>
+      <MsgId>MSG-20250413-001</MsgId>
+      <CreDtTm>2025-04-13T10:30:00</CreDtTm>
+      <NbOfTxs>2</NbOfTxs>
+      <SttlmInf>
+        <SttlmMtd>CLRG</SttlmMtd>
+      </SttlmInf>
+    </GrpHdr>
+    <CdtTrfTxInf>
+      <PmtId>
+        <EndToEndId>E2E-SUCCESS-TEST-001</EndToEndId>
+      </PmtId>
+      <IntrBkSttlmAmt Ccy="USD">50000.00</IntrBkSttlmAmt>
+      <IntrBkSttlmDt>2025-04-14</IntrBkSttlmDt>
+      <Dbtr><Nm>Alpha Corp Ltd</Nm></Dbtr>
+      <DbtrAgt><FinInstnId><BICFI>AAAAUS33</BICFI></FinInstnId></DbtrAgt>
+      <CdtrAgt><FinInstnId><BICFI>BBBBGB2L</BICFI></FinInstnId></CdtrAgt>
+      <Cdtr><Nm>Beta Industries PLC</Nm></Cdtr>
+    </CdtTrfTxInf>
+    <CdtTrfTxInf>
+      <PmtId>
+        <EndToEndId>E2E-SUCCESS-TEST-002</EndToEndId>
+      </PmtId>
+      <IntrBkSttlmAmt Ccy="EUR">125000.00</IntrBkSttlmAmt>
+      <IntrBkSttlmDt>2025-04-15</IntrBkSttlmDt>
+      <Dbtr><Nm>Gamma Holdings SA</Nm></Dbtr>
+      <DbtrAgt><FinInstnId><BICFI>CCCCFRPP</BICFI></FinInstnId></DbtrAgt>
+      <CdtrAgt><FinInstnId><BICFI>DDDDDEFF</BICFI></FinInstnId></CdtrAgt>
+      <Cdtr><Nm>Delta Finance GmbH</Nm></Cdtr>
+    </CdtTrfTxInf>
+  </FIToFICstmrCdtTrf>
+</Document>
