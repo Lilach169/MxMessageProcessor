@@ -1,0 +1,23 @@
+﻿
+-- Create the table for ISO 20022 payment transactions
+CREATE TABLE MX_TRANSACTIONS (
+    MSG_ID          VARCHAR2(50),
+    MSG_TYPE        VARCHAR2(20),
+    END_TO_END_ID   VARCHAR2(50),
+    AMOUNT          NUMBER(18,2),
+    CURRENCY        VARCHAR2(3),
+    SETTLEMENT_DATE DATE,
+    DEBTOR_NAME     NVARCHAR2(200),
+    DEBTOR_BIC      VARCHAR2(11),
+    CREDITOR_NAME   NVARCHAR2(200),
+    CREDITOR_BIC    VARCHAR2(11),
+    RAW_XML         CLOB,
+    LOAD_TIMESTAMP  TIMESTAMP,
+    SOURCE_FILE     VARCHAR2(500),
+    STATUS          VARCHAR2(20)
+);
+
+-- Prevent duplicate transactions within the same message
+ALTER TABLE MX_TRANSACTIONS
+ADD CONSTRAINT UQ_MX_TRANSACTION
+UNIQUE (MSG_ID, END_TO_END_ID);
