@@ -1,4 +1,5 @@
-﻿using System.Xml.Linq;
+﻿using System.Security.AccessControl;
+using System.Xml.Linq;
 using MxMessageProcessor;
 using MxMessageProcessor.Models;
 using Oracle.ManagedDataAccess.Client;
@@ -102,7 +103,7 @@ if (expectedCount != actualCount)
 
 Console.WriteLine("Validation successful!");
 List<MxTransaction> parsedTransactions = new();
-
+string rawXml = xml.ToString();
 foreach (var transaction in transactions)
 {
     string? endToEndId = transaction
@@ -202,8 +203,7 @@ foreach (var transaction in transactions)
 
         CreditorName = creditorName,
         CreditorBic = creditorBic,
-
-        RawXml = xml.ToString(),
+        RawXml = rawXml,
         LoadTimestamp = DateTime.UtcNow,
         SourceFile = Path.GetFileName(filePath),
         Status = "PARSED"
@@ -244,6 +244,9 @@ string? dbPassword =
 if (string.IsNullOrWhiteSpace(dbPassword))
 {
     Console.WriteLine("Error: MX_DB_PASSWORD is not configured.");
+
+    FileLogger.Log("ERROR: MX_DB_PASSWORD is not configured.");
+
     Environment.ExitCode = 1;
     return;
 }
@@ -350,10 +353,15 @@ try
     Console.WriteLine("All transactions saved successfully!");
         FileLogger.Log($"SUCCESS: All {parsedTransactions.Count} transactions saved successfully. Message ID: {messageId}");
     }
-    catch (Exception)
+    catch (Exception ex)
     {
         dbTransaction.Rollback();
+
         Console.WriteLine("Transaction rolled back. No changes were saved.");
+
+        FileLogger.Log(
+            $"ERROR: Transaction rolled back. Message ID: {messageId}. Reason: {ex.Message}");
+
         throw;
     }
 
@@ -361,14 +369,25 @@ try
 catch (OracleException ex) when (ex.Number == 1)
 {
     Console.WriteLine(
-        "Duplicate transaction detected. The transaction already exists in the database."
+        "Duplicate transaction detected. A unique constraint was violated."
     );
-    FileLogger.Log("ERROR: Duplicate transaction detected. The transaction already exists in the database.");
+
+    FileLogger.Log(
+        "ERROR: Duplicate transaction detected. A unique constraint was violated."
+    );
+
     Environment.ExitCode = 1;
 }
 catch (OracleException ex)
 {
     Console.WriteLine($"Oracle database error: {ex.Message}");
     FileLogger.Log($"ERROR: Oracle database error: {ex.Message}");
+    Environment.ExitCode = 1;
+}
+
+catch (Exception ex)
+{
+    Console.WriteLine($"Unexpected error: {ex.Message}");
+    FileLogger.Log($"ERROR: Unexpected error: {ex.Message}");
     Environment.ExitCode = 1;
 }
